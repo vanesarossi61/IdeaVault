@@ -1,0 +1,363 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== AUTH (NextAuth) =====
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  bio           String?   @db.Text
+  role          Role      @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  interactions  UserIdeaInteraction[]
+  comments      Comment[]
+  upvotes       Upvote[]
+  subscription  Subscription?
+
+  @@index([email])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+// ===== CORE: IDEAS =====
+model Idea {
+  id           String      @id @default(cuid())
+  title        String
+  slug         String      @unique
+  problem      String      @db.Text
+  solution     String      @db.Text
+  plan         Json
+  revenueModel String
+  whyNow       String?     @db.Text
+  complexity   Complexity  @default(MEDIUM)
+  status       IdeaStatus  @default(PUBLISHED)
+  featuredDate DateTime?
+  sourceData   Json?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  scores       IdeaScore?
+  tags         IdeaTag[]
+  trends       IdeaTrend[]
+  signals      CommunitySignal[]
+  interactions UserIdeaInteraction[]
+  comments     Comment[]
+  upvotes      Upvote[]
+  deadStartups DeadStartup[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([featuredDate])
+  @@index([createdAt])
+}
+
+enum Complexity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum IdeaStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model IdeaScore {
+  id          String @id @default(cuid())
+  ideaId      String @unique
+  opportunity Int
+  painPoints  Int
+  confidence  Int
+  timing      Int
+  composite   Float
+
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+}
+
+// ===== TAGS =====
+model Tag {
+  id    String    @id @default(cuid())
+  name  String    @unique
+  slug  String    @unique
+  ideas IdeaTag[]
+
+  @@index([slug])
+}
+
+model IdeaTag {
+  ideaId String
+  tagId  String
+  idea   Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([ideaId, tagId])
+}
+
+// ===== TRENDS =====
+model Trend {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  volume      Int?
+  growthPct   Float?
+  category    String?
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  dataPoints  TrendDataPoint[]
+  ideas       IdeaTrend[]
+
+  @@index([slug])
+  @@index([category])
+}
+
+model TrendDataPoint {
+  id      String   @id @default(cuid())
+  trendId String
+  date    DateTime
+  value   Float
+
+  trend Trend @relation(fields: [trendId], references: [id], onDelete: Cascade)
+
+  @@index([trendId, date])
+}
+
+model IdeaTrend {
+  ideaId  String
+  trendId String
+  idea    Idea  @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  trend   Trend @relation(fields: [trendId], references: [id], onDelete: Cascade)
+
+  @@id([ideaId, trendId])
+}
+
+// ===== TOOLS =====
+model Tool {
+  id          String    @id @default(cuid())
+  name        String
+  description String    @db.Text
+  url         String
+  pricing     Pricing   @default(FREE)
+  category    String
+  stackId     String?
+  stack       ToolStack? @relation(fields: [stackId], references: [id])
+
+  @@index([category])
+  @@index([stackId])
+}
+
+enum Pricing {
+  FREE
+  FREEMIUM
+  PAID
+}
+
+model ToolStack {
+  id    String @id @default(cuid())
+  name  String @unique
+  tools Tool[]
+}
+
+// ===== SOCIAL =====
+model UserIdeaInteraction {
+  id     String          @id @default(cuid())
+  userId String
+  ideaId String
+  type   InteractionType
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idea   Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ideaId, type])
+  @@index([userId])
+  @@index([ideaId])
+}
+
+enum InteractionType {
+  SAVED
+  INTERESTED
+  BUILDING
+  HIDDEN
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  userId    String
+  ideaId    String
+  body      String   @db.Text
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idea    Idea      @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
+
+  @@index([ideaId])
+  @@index([userId])
+  @@index([parentId])
+}
+
+model Upvote {
+  id         String @id @default(cuid())
+  userId     String
+  targetType String
+  targetId   String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetType, targetId])
+  @@index([targetType, targetId])
+}
+
+// ===== SIGNALS =====
+model CommunitySignal {
+  id      String       @id @default(cuid())
+  ideaId  String
+  source  SignalSource
+  url     String?
+  metric  String?
+  snippet String?      @db.Text
+
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  @@index([ideaId])
+  @@index([source])
+}
+
+enum SignalSource {
+  REDDIT
+  HACKERNEWS
+  PRODUCTHUNT
+  FLIPPA
+  TRENDS
+}
+
+// ===== GRAVEYARD: DEAD/FAILED STARTUPS =====
+model DeadStartup {
+  id            String              @id @default(cuid())
+  name          String
+  slug          String              @unique
+  batch         String
+  batchLabel    String?
+  status        DeadStartupStatus   @default(INACTIVE)
+  category      String?
+  categories    String[]
+  description   String?             @db.Text
+  url           String?
+  foundedYear   Int?
+  shutdownYear  Int?
+  funding       String?
+  teamSize      String?
+  founders      String?
+  failureReason String?             @db.Text
+  postMortem    String?             @db.Text
+  lessons       Json?
+  rebuildPlan   String?             @db.Text
+  successor     String?
+  successorUrl  String?
+  sourceUrl     String?
+  ideaId        String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  idea          Idea?               @relation(fields: [ideaId], references: [id], onDelete: SetNull)
+
+  @@index([slug])
+  @@index([batch])
+  @@index([status])
+  @@index([category])
+  @@index([ideaId])
+}
+
+enum DeadStartupStatus {
+  INACTIVE
+  ACQUIRED
+  PIVOTED
+  UNKNOWN
+}
+
+// ===== MONETIZATION =====
+model Subscription {
+  id                     String             @id @default(cuid())
+  userId                 String             @unique
+  stripeCustomerId       String             @unique
+  stripeSubscriptionId   String?            @unique
+  plan                   SubscriptionPlan   @default(FREE)
+  status                 SubscriptionStatus @default(ACTIVE)
+  currentPeriodEnd       DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([stripeCustomerId])
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PRO
+  EMPIRE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
