@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { PLANS } from "@/lib/stripe";
 import { getAnnualMonthlyPrice } from "@/lib/subscription";
 import { PricingCard } from "@/components/pricing/PricingCard";
+import { trpc } from "@/lib/trpc/client";
 import type { SubscriptionPlan } from "@prisma/client";
 
 // ===== FAQ DATA =====
@@ -80,8 +81,12 @@ export default function PricingPage() {
   const [isAnnual, setIsAnnual] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-  // TODO: fetch user's current plan from API if logged in
-  const currentPlan: SubscriptionPlan | null = null;
+  // Fetch user's current plan from API if logged in
+  const { data: profile } = trpc.user.getProfile.useQuery(undefined, {
+    enabled: !!session?.user,
+  });
+  const currentPlan: SubscriptionPlan | null =
+    profile?.subscription?.plan ?? null;
 
   const plans: {
     key: SubscriptionPlan;
