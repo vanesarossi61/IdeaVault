@@ -61,7 +61,8 @@ model User {
   interactions  UserIdeaInteraction[]
   comments      Comment[]
   upvotes       Upvote[]
-  subscription  Subscription?
+  subscription    Subscription?
+  aiValidations   AIValidation[]
 
   @@index([email])
 }
@@ -360,4 +361,22 @@ enum SubscriptionStatus {
   PAST_DUE
   CANCELED
   INCOMPLETE
+}
+
+// ===== AI WORKSPACE =====
+model AIValidation {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // VALIDATION, BUSINESS_PLAN, MARKET_ANALYSIS
+  title     String
+  input     String   @db.Text
+  output    Json
+  score     Int?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, type])
+  @@index([createdAt])
 }
