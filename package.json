@@ -11,6 +11,10 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed-graveyard.ts",
+    "db:seed:ideas": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed-ideas.ts",
+    "db:seed:trends": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed-trends.ts",
+    "db:seed:tools": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed-tools.ts",
+    "db:seed:all": "npm run db:seed && npm run db:seed:ideas && npm run db:seed:trends && npm run db:seed:tools",
     "postinstall": "prisma generate"
   },
   "dependencies": {
