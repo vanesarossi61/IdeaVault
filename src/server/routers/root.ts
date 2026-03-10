@@ -6,6 +6,9 @@ import { graveyardRouter } from "./graveyard";
 import { dashboardRouter } from "./dashboard";
 import { userRouter } from "./user";
 import { updateRouter } from "./update";
+import { hubRouter } from "./hub";
+import { aiRouter } from "./ai";
+import { adminRouter } from "./admin";
 
 export const appRouter = createTRPCRouter({
   idea: ideaRouter,
@@ -15,6 +18,9 @@ export const appRouter = createTRPCRouter({
   dashboard: dashboardRouter,
   user: userRouter,
   update: updateRouter,
+  hub: hubRouter,
+  ai: aiRouter,
+  admin: adminRouter,
 });
 
 export type AppRouter = typeof appRouter;
